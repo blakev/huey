@@ -207,7 +207,7 @@ class TestExecution(ConsumerTestCase):
 class TestGroupInclusion(ConsumerTestCase):
 
     def destructive_consumer(self, **kwargs):
-        huey = DummyHuey(None)
+        huey = DummyHuey(None, global_registry=False)
         @huey.task(group=1)
         def non_inclusive_task():
             return 'ouch'
@@ -221,7 +221,7 @@ class TestGroupInclusion(ConsumerTestCase):
         return consumer
 
     def test_groups_default(self):
-        consumer = self.get_consumer()
+        consumer = self.destructive_consumer()
         self.assertIsNone(consumer.task_groups)
 
     def test_invalid_group(self):
@@ -235,7 +235,7 @@ class TestGroupInclusion(ConsumerTestCase):
             ',,,',
         ]
         for case in cases:
-            consumer = self.get_consumer(task_groups=case)
+            consumer = self.destructive_consumer(task_groups=case)
             self.assertIsNone(consumer.task_groups)
 
     def test_group_oddity(self):
@@ -255,7 +255,7 @@ class TestGroupInclusion(ConsumerTestCase):
     def test_one_group(self):
         consumer = self.destructive_consumer(task_groups='slow')
         self.assertIn('slow', consumer.task_groups)
-        self.assertEqual(1, len(consumer.huey.registry))
+        self.assertEqual(1, len(consumer.huey.registry._registry))
 
     def test_multi_group(self):
         groups = [
@@ -268,7 +268,7 @@ class TestGroupInclusion(ConsumerTestCase):
         ]
         for group in groups:
             consumer = self.destructive_consumer(task_groups=group)
-            self.assertEqual(2, len(consumer.huey.registry))
+            self.assertEqual(2, len(consumer.huey.registry._registry))
 
 
 class TestConsumerAPIs(ConsumerTestCase):

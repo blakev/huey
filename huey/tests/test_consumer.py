@@ -2,6 +2,7 @@ import contextlib
 import datetime
 import threading
 import time
+from copy import deepcopy
 from functools import wraps
 
 from huey import crontab
@@ -14,6 +15,7 @@ from huey.exceptions import TaskException
 from huey.tests.base import b
 from huey.tests.base import BrokenHuey
 from huey.tests.base import CaptureLogs
+from huey.tests.base import DummyHuey
 from huey.tests.base import HueyTestCase
 from huey.tests.base import test_huey
 
@@ -200,6 +202,73 @@ class TestExecution(ConsumerTestCase):
             assert False, 'Timeout. Consumer/workers running correctly?'
 
         self.assertEqual(state, {'k1': 'v1', 'k2': 'v2', 'k3': 'v3'})
+
+
+class TestGroupInclusion(ConsumerTestCase):
+
+    def destructive_consumer(self, **kwargs):
+        huey = DummyHuey(None)
+        @huey.task(group=1)
+        def non_inclusive_task():
+            return 'ouch'
+        @huey.task(group='fast')
+        def fast_task():
+            return 'fast'
+        @huey.task(group='slow')
+        def slow_task():
+            return 'slow'
+        consumer = Consumer(huey, **kwargs)
+        return consumer
+
+    def test_groups_default(self):
+        consumer = self.get_consumer()
+        self.assertIsNone(consumer.task_groups)
+
+    def test_invalid_group(self):
+        cases = [
+            0,
+            1,
+            False,
+            None,
+            '',
+            ',',
+            ',,,',
+        ]
+        for case in cases:
+            consumer = self.get_consumer(task_groups=case)
+            self.assertIsNone(consumer.task_groups)
+
+    def test_group_oddity(self):
+        # tasks cannot define non-string groups because the commandline
+        #  argument will not account for all the possible type conventions
+        groups = [
+            '1',
+            'fast slow',
+            '1,',
+            ',,1,'
+        ]
+        for group in groups:
+            consumer = self.destructive_consumer(task_groups=group)
+            self.assertDictEqual({}, consumer.huey.registry._registry)
+            self.assertListEqual([], consumer.huey.registry._periodic_tasks)
+
+    def test_one_group(self):
+        consumer = self.destructive_consumer(task_groups='slow')
+        self.assertIn('slow', consumer.task_groups)
+        self.assertEqual(1, len(consumer.huey.registry))
+
+    def test_multi_group(self):
+        groups = [
+            'fast,slow',
+            'fast , slow',
+            '  fast,slow  ',
+            'fast, slow',
+            'slow,fast',
+            'slow,fast,,,,'
+        ]
+        for group in groups:
+            consumer = self.destructive_consumer(task_groups=group)
+            self.assertEqual(2, len(consumer.huey.registry))
 
 
 class TestConsumerAPIs(ConsumerTestCase):

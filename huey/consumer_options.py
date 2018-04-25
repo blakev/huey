@@ -10,6 +10,7 @@ from huey.constants import WORKER_TYPES
 config_defaults = (
     ('workers', 1),
     ('worker_type', WORKER_THREAD),
+    ('task_groups', ''),
     ('initial_delay', 0.1),
     ('backoff', 1.15),
     ('max_delay', 10.0),
@@ -47,6 +48,9 @@ class OptionParserHandler(object):
                          'process). Use process for CPU-intensive workloads, '
                          'and greenlet for IO-heavy workloads. When in doubt, '
                          'thread is the safest choice.')),
+            option(('g', 'task-groups'), type='str',
+                   help=('comma separated list of groups to include in the '
+                         'available tasks.')),
             option('delay', dest='initial_delay',
                    help='minimum time to wait when polling queue (default=.1)',
                    metavar='SECONDS', type='float'),

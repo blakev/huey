@@ -406,7 +406,7 @@ class Consumer(object):
     def __init__(self, huey, workers=1, periodic=True, initial_delay=0.1,
                  backoff=1.15, max_delay=10.0, utc=True, scheduler_interval=1,
                  worker_type='thread', check_worker_health=True,
-                 health_check_interval=1, flush_locks=False):
+                 health_check_interval=1, flush_locks=False, task_groups=None):
 
         self._logger = logging.getLogger('huey.consumer')
         if huey.always_eager:
@@ -423,6 +423,9 @@ class Consumer(object):
         self.utc = utc
         self.scheduler_interval = max(min(scheduler_interval, 60), 1)
         self.worker_type = worker_type
+
+        # Remove tasks that aren't in the task_groups
+        self.task_groups = self.huey.registry.filter_task_groups(task_groups)
 
         # Configure health-check and consumer main-loop attributes.
         self._stop_flag_timeout = 0.1

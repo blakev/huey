@@ -1,3 +1,4 @@
+from operator import attrgetter
 import pickle
 
 from huey.exceptions import QueueException
@@ -39,6 +40,18 @@ class TaskRegistry(object):
             for task in self._periodic_tasks:
                 if isinstance(task, task_class):
                     self._periodic_tasks.remove(task)
+
+    def filter_task_groups(self, task_groups):
+        if not task_groups or not isinstance(task_groups, str):
+            return
+        groups = [g.strip() for g in task_groups.split(',') if g]
+        if not groups:
+            return
+        for task_class in list(self._registry.values()):
+            task_group = getattr(task_class, 'group', None)
+            if task_group not in groups:
+                self.unregister(task_class)
+        return groups
 
     def __contains__(self, klass_str):
         return klass_str in self._registry
